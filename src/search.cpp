@@ -2,12 +2,14 @@
 #include "board.hpp"
 #include "common.hpp"
 #include "movegen.hpp"
+#include "movepick.hpp"
 #include "tm.hpp"
 #include "uci.hpp"
 #include "util/types.hpp"
 #include <array>
 #include <iostream>
 #include <limits>
+
 
 namespace Clockwork {
 namespace Search {
@@ -145,14 +147,12 @@ Value Worker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth de
         return 0;
     }
 
-    MoveList moves;
-    MoveGen  movegen{pos};
-    Value    best_value = -VALUE_INF;
-    // Generate legal moves
-    movegen.generate_moves(moves);
+    MovePicker picker{pos};
+    Value      best_value = -VALUE_INF;
 
-    // Iterate over the move list
-    for (Move m : moves) {
+    // Iterate over all moves
+    while (auto next = picker.pick_next()) {
+        Move m = next.value();
         // Do move
         Position pos_after = pos.move(m);
 
