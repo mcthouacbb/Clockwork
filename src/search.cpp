@@ -99,7 +99,7 @@ Move Worker::iterative_deepening(Position root_position) {
 
     for (Depth search_depth = 1;; search_depth++) {
         // Call search
-        Value score = search(root_position, &ss[0], alpha, beta, search_depth, 0);
+        Value score = search<true>(root_position, &ss[0], alpha, beta, search_depth, 0);
 
         // If m_stopped is true, then the search exited early. Discard the results for this depth.
         if (m_stopped) {
@@ -131,6 +131,7 @@ Move Worker::iterative_deepening(Position root_position) {
     return last_best_move;
 }
 
+template<bool PV_NODE>
 Value Worker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, i32 ply) {
     if (depth <= 0) {
         return quiesce(pos, ss, alpha, beta, ply);
@@ -174,19 +175,29 @@ Value Worker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth de
     auto tt_data = m_tt.probe(pos);
 
     MovePicker moves{pos, m_td.history, tt_data ? tt_data->move : Move::none()};
-    Move       best_move  = Move::none();
-    Value      best_value = -VALUE_INF;
+    Move       best_move    = Move::none();
+    Value      best_value   = -VALUE_INF;
+    i32        moves_played = 0;
 
     // Iterate over the move list
     for (Move m = moves.next(); m != Move::none(); m = moves.next()) {
         // Do move
         Position pos_after = pos.move(m);
+        moves_played++;
 
         // Put hash into repetition table. TODO: encapsulate this and any other future adjustment to do "on move" into a proper function
         m_repetition_info.push(pos_after.get_hash_key(), pos_after.is_reversible(m));
 
         // Get search value
-        Value value = -search(pos_after, ss + 1, -beta, -alpha, depth - 1, ply + 1);
+        Value value;
+        if (moves_played == 1) {
+            value = -search<PV_NODE>(pos_after, ss + 1, -beta, -alpha, depth - 1, ply + 1);
+        } else {
+            value = -search<false>(pos_after, ss + 1, -alpha - 1, -alpha, depth - 1, ply + 1);
+            if (value > alpha && PV_NODE) {
+                value = -search<true>(pos_after, ss + 1, -beta, -alpha, depth - 1, ply + 1);
+            }
+        }
 
         // TODO: encapsulate this and any other future adjustment to do "on going back" into a proper function
         m_repetition_info.pop();
