@@ -210,6 +210,12 @@ Value Worker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth de
 
     // Iterate over the move list
     for (Move m = moves.next(); m != Move::none(); m = moves.next()) {
+        if (!ROOT_NODE && best_value > -VALUE_WIN) {
+            if (depth <= 4 && quiet_move(m) && static_eval + 100 + 150 * depth <= alpha) {
+                moves.skip_quiets();
+                continue;
+            }
+        }
         // Do move
         Position pos_after = pos.move(m);
 
