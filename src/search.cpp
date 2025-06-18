@@ -188,8 +188,7 @@ Value Worker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth de
 
     // Reuse TT score as a better positional evaluation
     auto tt_adjusted_eval = static_eval;
-    if (tt_data
-        && tt_data->bound != (tt_data->score > static_eval ? Bound::Upper : Bound::Lower)) {
+    if (tt_data && tt_data->bound != (tt_data->score > static_eval ? Bound::Upper : Bound::Lower)) {
         tt_adjusted_eval = tt_data->score;
     }
 
@@ -312,6 +311,14 @@ Value Worker::quiesce(Position& pos, Stack* ss, Value alpha, Value beta, i32 ply
     // Return eval if we exceed the max ply.
     if (ply >= MAX_PLY) {
         return evaluate(pos);
+    }
+
+    auto tt_data = m_tt.probe(pos, ply);
+    if (tt_data
+        && (tt_data->bound == Bound::Exact
+            || (tt_data->bound == Bound::Lower && tt_data->score >= beta)
+            || (tt_data->bound == Bound::Upper && tt_data->score <= alpha))) {
+        return tt_data->score;
     }
 
     bool  is_in_check = pos.is_in_check();
