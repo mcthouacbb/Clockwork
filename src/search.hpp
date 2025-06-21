@@ -13,6 +13,8 @@ namespace Search {
 struct Stack {
     Move* pv;
     Move  killer;
+
+    Value static_eval;
 };
 
 struct SearchLimits {
