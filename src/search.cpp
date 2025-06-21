@@ -65,7 +65,7 @@ void Worker::launch_search(Position            root_position,
 
 Move Worker::iterative_deepening(Position root_position) {
 
-    std::array<Stack, MAX_PLY + 1> ss;
+    std::array<Stack, MAX_PLY + 1> ss = {};
     std::array<Move, MAX_PLY + 1>  pv;
     Value                          alpha = -VALUE_INF, beta = +VALUE_INF;
 
@@ -188,6 +188,9 @@ Value Worker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth de
 
     bool  is_in_check = pos.is_in_check();
     Value static_eval = is_in_check ? -VALUE_INF : evaluate(pos);
+    ss->static_eval   = static_eval;
+
+    bool improving = ply >= 2 && !is_in_check && static_eval > (ss - 2)->static_eval;
 
     // Reuse TT score as a better positional evaluation
     auto tt_adjusted_eval = static_eval;
@@ -240,6 +243,7 @@ Value Worker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth de
             i32 reduction =
               static_cast<i32>(0.77 + std::log(depth) * std::log(moves_played) / 2.36);
             reduction -= PV_NODE;
+            reduction += !improving;
             Depth reduced_depth = std::min(std::max(new_depth - reduction, 1), new_depth);
             value = -search<false>(pos_after, ss + 1, -alpha - 1, -alpha, reduced_depth, ply + 1);
             if (value > alpha && reduced_depth < new_depth) {
