@@ -2,13 +2,16 @@
 #include "history.hpp"
 #include "move.hpp"
 #include "position.hpp"
+#include "psqt_state.hpp"
 #include "repetition_info.hpp"
 #include "tt.hpp"
+#include "util/static_vector.hpp"
 #include "util/types.hpp"
 #include <barrier>
 #include <memory>
 #include <shared_mutex>
 #include <thread>
+
 
 namespace Clockwork {
 namespace Search {
@@ -46,7 +49,17 @@ struct SearchLimits {
 };
 
 struct ThreadData {
-    History history;
+    History                              history;
+    StaticVector<PsqtState, MAX_PLY + 2> psqt_states;
+
+    PsqtState& push_psqt_state() {
+        psqt_states.push_back(psqt_states.back());
+        return psqt_states.back();
+    }
+
+    void pop_psqt_state() {
+        psqt_states.pop_back();
+    }
 };
 
 class Searcher {

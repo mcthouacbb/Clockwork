@@ -84,7 +84,7 @@ const std::array<PScore, 64> KING_PSQT = {
 };
 // clang-format on
 
-Score evaluate_white_pov(const Position& pos) {
+Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     const Color us    = pos.active_color();
     i32         phase = pos.piece_count(Color::White, PieceType::Knight)
@@ -111,7 +111,7 @@ Score evaluate_white_pov(const Position& pos) {
     PScore mobility = MOBILITY_VAL * mob_count;
 
     PScore tempo = (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
-    PScore sum   = pos.psqt_state().score() + mobility + tempo;
+    PScore sum   = psqt_state.score() + mobility + tempo;
 #ifdef EVAL_TUNING
     return sum->phase<24.0>(static_cast<f64>(phase));
 #else
@@ -119,9 +119,10 @@ Score evaluate_white_pov(const Position& pos) {
 #endif
 };
 
-Score evaluate_stm_pov(const Position& pos) {
+Score evaluate_stm_pov(const Position& pos, const PsqtState& psqtState) {
     const Color us = pos.active_color();
-    return (us == Color::White) ? evaluate_white_pov(pos) : -evaluate_white_pov(pos);
+    return (us == Color::White) ? evaluate_white_pov(pos, psqtState)
+                                : -evaluate_white_pov(pos, psqtState);
 }
 
 }  // namespace Clockwork

@@ -8,13 +8,17 @@
 #include "board.hpp"
 #include "common.hpp"
 #include "geometry.hpp"
+#include "psqt_state.hpp"
 #include "util/parse.hpp"
 #include "util/types.hpp"
 #include "zobrist.hpp"
 
 namespace Clockwork {
 
-void Position::incrementally_remove_piece(bool color, PieceId id, Square from) {
+void Position::incrementally_remove_piece(bool         color,
+                                          PieceId      id,
+                                          Square       from,
+                                          PsqtUpdates& updates) {
     remove_attacks(color, id);
     toggle_rays(from);
 
@@ -22,37 +26,38 @@ void Position::incrementally_remove_piece(bool color, PieceId id, Square from) {
     m_hash_key ^=
       Zobrist::piece_square_zobrist[static_cast<size_t>(m_board[from].color())]
                                    [static_cast<size_t>(m_board[from].ptype())][from.raw];
-    m_psqt_state.remove_piece(m_board[from].color(), m_board[from].ptype(), from);
+    updates.removes.push_back({m_board[from].color(), m_board[from].ptype(), from});
     m_board[from] = Place::empty();
 }
 
-void Position::incrementally_add_piece(bool color, Place p, Square to) {
+void Position::incrementally_add_piece(bool color, Place p, Square to, PsqtUpdates& updates) {
     // TODO: check if some speed left on the table for zobrist here
     m_board[to] = p;
     m_hash_key ^= Zobrist::piece_square_zobrist[static_cast<size_t>(m_board[to].color())]
                                                [static_cast<size_t>(m_board[to].ptype())][to.raw];
-    m_psqt_state.add_piece(p.color(), p.ptype(), to);
+    updates.adds.push_back({p.color(), p.ptype(), to});
 
     v512 m = toggle_rays(to);
     add_attacks(color, p.id(), to, p.ptype(), m);
 }
 
 void Position::incrementally_mutate_piece(
-  bool old_color, PieceId old_id, Square sq, bool new_color, Place p) {
+  bool old_color, PieceId old_id, Square sq, bool new_color, Place p, PsqtUpdates& updates) {
     // TODO: check if some speed left on the table for zobrist here
     m_hash_key ^= Zobrist::piece_square_zobrist[static_cast<size_t>(m_board[sq].color())]
                                                [static_cast<size_t>(m_board[sq].ptype())][sq.raw];
-    m_psqt_state.remove_piece(m_board[sq].color(), m_board[sq].ptype(), sq);
+    updates.removes.push_back({m_board[sq].color(), m_board[sq].ptype(), sq});
     m_board[sq] = p;
     m_hash_key ^= Zobrist::piece_square_zobrist[static_cast<size_t>(m_board[sq].color())]
                                                [static_cast<size_t>(m_board[sq].ptype())][sq.raw];
-    m_psqt_state.add_piece(p.color(), p.ptype(), sq);
+    updates.adds.push_back({p.color(), p.ptype(), sq});
 
     remove_attacks(old_color, old_id);
     add_attacks(new_color, p.id(), sq, p.ptype());
 }
 
-void Position::incrementally_move_piece(bool color, Square from, Square to, Place p) {
+void Position::incrementally_move_piece(
+  bool color, Square from, Square to, Place p, PsqtUpdates& updates) {
     remove_attacks(color, p.id());
 
     auto [src_ray_coords, src_ray_valid] = geometry::superpiece_rays(from);
@@ -63,12 +68,12 @@ void Position::incrementally_move_piece(bool color, Square from, Square to, Plac
     m_hash_key ^=
       Zobrist::piece_square_zobrist[static_cast<size_t>(m_board[from].color())]
                                    [static_cast<size_t>(m_board[from].ptype())][from.raw];
-    m_psqt_state.remove_piece(m_board[from].color(), m_board[from].ptype(), from);
+    updates.removes.push_back({m_board[from].color(), m_board[from].ptype(), from});
     m_board[from] = Place::empty();
     m_board[to]   = p;
     m_hash_key ^= Zobrist::piece_square_zobrist[static_cast<size_t>(m_board[to].color())]
                                                [static_cast<size_t>(m_board[to].ptype())][to.raw];
-    m_psqt_state.add_piece(p.color(), p.ptype(), to);
+    updates.adds.push_back({p.color(), p.ptype(), to});
 
     v512 dst_ray_places = v512::permute8(dst_ray_coords, m_board.to_vec());
 
@@ -218,8 +223,10 @@ void Position::add_attacks(bool color, PieceId id, Square sq, PieceType ptype, v
     m_attack_table[color].raw[1] |= bit & m1;
 }
 
-Position Position::move(Move m) const {
-    Position new_pos = *this;
+template<bool UPDATE_PSQT>
+Position Position::move(Move m, PsqtState* psqtState) const {
+    Position    new_pos = *this;
+    PsqtUpdates updates{};
 
     Square from  = m.from();
     Square to    = m.to();
@@ -257,7 +264,7 @@ Position Position::move(Move m) const {
 
     switch (m.flags()) {
     case MoveFlags::Normal:
-        new_pos.incrementally_move_piece(color, from, to, src);
+        new_pos.incrementally_move_piece(color, from, to, src, updates);
 
         new_pos.m_piece_list_sq[color][src.id()] = to;
 
@@ -277,8 +284,8 @@ Position Position::move(Move m) const {
         }
         break;
     case MoveFlags::CaptureBit:
-        new_pos.incrementally_remove_piece(color, src.id(), from);
-        new_pos.incrementally_mutate_piece(!color, dst.id(), to, color, src);
+        new_pos.incrementally_remove_piece(color, src.id(), from, updates);
+        new_pos.incrementally_mutate_piece(!color, dst.id(), to, color, src, updates);
 
         new_pos.m_piece_list_sq[color][src.id()]  = to;
         new_pos.m_piece_list_sq[!color][dst.id()] = Square::invalid();
@@ -300,10 +307,10 @@ Position Position::move(Move m) const {
         Place   rook_place = Place{m_active_color, PieceType::Rook, rook_id};
 
         // TODO: Optimize further (slider updates can be elided in some cases).
-        new_pos.incrementally_remove_piece(color, king_id, king_from);
-        new_pos.incrementally_remove_piece(color, rook_id, rook_from);
-        new_pos.incrementally_add_piece(color, king_place, king_to);
-        new_pos.incrementally_add_piece(color, rook_place, rook_to);
+        new_pos.incrementally_remove_piece(color, king_id, king_from, updates);
+        new_pos.incrementally_remove_piece(color, rook_id, rook_from, updates);
+        new_pos.incrementally_add_piece(color, king_place, king_to, updates);
+        new_pos.incrementally_add_piece(color, rook_place, rook_to, updates);
 
         new_pos.m_piece_list_sq[color][king_id] = king_to;
         new_pos.m_piece_list_sq[color][rook_id] = rook_to;
@@ -316,8 +323,8 @@ Position Position::move(Move m) const {
         Square victim_sq = Square::from_file_and_rank(m_enpassant.file(), from.rank());
         Place  victim    = m_board[victim_sq];
 
-        new_pos.incrementally_remove_piece(!color, victim.id(), victim_sq);
-        new_pos.incrementally_move_piece(color, from, to, src);
+        new_pos.incrementally_remove_piece(!color, victim.id(), victim_sq, updates);
+        new_pos.incrementally_move_piece(color, from, to, src, updates);
 
         new_pos.m_piece_list_sq[color][src.id()]     = to;
         new_pos.m_piece_list_sq[!color][victim.id()] = Square::invalid();
@@ -332,7 +339,7 @@ Position Position::move(Move m) const {
     case MoveFlags::PromoQueen: {
         Place new_place{m_active_color, *m.promo(), src.id()};
 
-        new_pos.incrementally_move_piece(color, from, to, new_place);
+        new_pos.incrementally_move_piece(color, from, to, new_place, updates);
 
         new_pos.m_piece_list_sq[color][src.id()] = to;
         new_pos.m_piece_list[color][src.id()]    = *m.promo();
@@ -346,8 +353,8 @@ Position Position::move(Move m) const {
     case MoveFlags::PromoQueenCapture: {
         Place new_place{m_active_color, *m.promo(), src.id()};
 
-        new_pos.incrementally_remove_piece(color, src.id(), from);
-        new_pos.incrementally_mutate_piece(!color, dst.id(), to, color, new_place);
+        new_pos.incrementally_remove_piece(color, src.id(), from, updates);
+        new_pos.incrementally_mutate_piece(!color, dst.id(), to, color, new_place, updates);
 
         new_pos.m_piece_list_sq[color][src.id()]  = to;
         new_pos.m_piece_list[color][src.id()]     = *m.promo();
@@ -368,8 +375,15 @@ Position Position::move(Move m) const {
     new_pos.m_active_color = invert(m_active_color);
     new_pos.m_ply++;
 
+    if constexpr (UPDATE_PSQT) {
+        psqtState->apply_updates(updates);
+    }
+
     return new_pos;
 }
+
+template Position Position::move<true>(Move m, PsqtState* psqtState) const;
+template Position Position::move<false>(Move m, PsqtState* psqtState) const;
 
 Position Position::null_move() const {
     Position new_pos = *this;
@@ -515,7 +529,6 @@ std::optional<Position> Position::parse(std::string_view board,
                 result.m_board.mailbox[sq.raw] = Place{color, ptype, PieceId{current_id}};
                 result.m_piece_list_sq[static_cast<usize>(color)].array[current_id] = sq;
                 result.m_piece_list[static_cast<usize>(color)].array[current_id]    = ptype;
-                result.m_psqt_state.add_piece(color, ptype, sq);
                 place_index++;
             };
 

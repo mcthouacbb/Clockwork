@@ -3,14 +3,40 @@
 #include "common.hpp"
 #include "eval_constants.hpp"
 #include "eval_types.hpp"
+#include "position.hpp"
 #include "square.hpp"
-
+#include "util/static_vector.hpp"
 
 namespace Clockwork {
+
+struct PsqtUpdates {
+    struct Update {
+        Color     color;
+        PieceType pt;
+        Square    sq;
+    };
+    StaticVector<Update, 2> adds;
+    StaticVector<Update, 2> removes;
+};
 
 struct PsqtState {
 public:
     PsqtState() = default;
+    PsqtState(const Position& pos) {
+        for (Color c : {Color::White, Color::Black}) {
+            auto& pieces  = pos.piece_list(c);
+            auto& squares = pos.piece_list_sq(c);
+
+            for (size_t i = 0; i < 16; i++) {
+                PieceType pt = pieces[i];
+                if (pt == PieceType::None) {
+                    continue;
+                }
+
+                add_piece(c, pt, squares[i]);
+            }
+        }
+    }
 
     void add_piece(Color color, PieceType pt, Square sq) {
         if (color == Color::White) {
@@ -81,6 +107,16 @@ public:
             m_score = m_score - diff;
         } else {
             m_score = m_score + diff;
+        }
+    }
+
+    void apply_updates(const PsqtUpdates& updates) {
+        for (const auto& add : updates.adds) {
+            add_piece(add.color, add.pt, add.sq);
+        }
+
+        for (const auto& remove : updates.removes) {
+            remove_piece(remove.color, remove.pt, remove.sq);
         }
     }
 
