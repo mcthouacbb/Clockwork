@@ -5,7 +5,6 @@
 #include "psqt_state.hpp"
 #include "repetition_info.hpp"
 #include "tt.hpp"
-#include "util/static_vector.hpp"
 #include "util/types.hpp"
 #include <barrier>
 #include <memory>
@@ -49,8 +48,8 @@ struct SearchLimits {
 };
 
 struct ThreadData {
-    History                              history;
-    StaticVector<PsqtState, MAX_PLY + 2> psqt_states;
+    History                history;
+    std::vector<PsqtState> psqt_states;
 
     PsqtState& push_psqt_state() {
         psqt_states.push_back(psqt_states.back());
