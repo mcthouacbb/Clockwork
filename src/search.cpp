@@ -194,7 +194,8 @@ Move Worker::iterative_deepening(const Position& root_position) {
     std::array<Move, MAX_PLY + 1>  pv;
 
     for (u32 i = 0; i < static_cast<u32>(MAX_PLY); i++) {
-        ss[i].pv = &pv[i];
+        ss[i].pv          = &pv[i];
+        ss[i].static_eval = -VALUE_INF;
     }
 
     Depth last_search_depth = 0;
@@ -338,7 +339,19 @@ Value Worker::search(
     }
 
     bool  is_in_check = pos.is_in_check();
-    Value static_eval = is_in_check ? -VALUE_INF : evaluate(pos);
+    Value static_eval = ss->static_eval = is_in_check ? -VALUE_INF : evaluate(pos);
+    bool  improving                     = [&]() {
+        if (is_in_check) {
+            return false;
+        }
+        if (ply >= 2 && (ss - 2)->static_eval != -VALUE_INF) {
+            return ss->static_eval > (ss - 2)->static_eval;
+        }
+        if (ply >= 4 && (ss - 4)->static_eval != -VALUE_INF) {
+            return ss->static_eval > (ss - 4)->static_eval;
+        }
+        return true;
+    }();
 
     // Internal Iterative Reductions
     if (PV_NODE && depth >= 8 && (!tt_data || tt_data->move == Move::none())) {
@@ -352,7 +365,7 @@ Value Worker::search(
     }
 
     if (!PV_NODE && !is_in_check && depth <= tuned::rfp_depth
-        && tt_adjusted_eval >= beta + tuned::rfp_margin * depth) {
+        && tt_adjusted_eval >= beta + tuned::rfp_margin * (depth - improving)) {
         return tt_adjusted_eval;
     }
 
@@ -443,7 +456,7 @@ Value Worker::search(
             if (!quiet) {
                 reduction = std::min(reduction, 1024);
             }
-            
+
             reduction /= 1024;
 
             Depth reduced_depth = std::clamp<Depth>(new_depth - reduction, 1, new_depth);
