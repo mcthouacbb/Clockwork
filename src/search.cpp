@@ -412,6 +412,11 @@ Value Worker::search(
                 break;
             }
 
+            if (depth <= 6 && !is_in_check && quiet && static_eval + 500 + 400 * depth <= alpha) {
+                moves.skip_quiets();
+                continue;
+            }
+
             Value see_threshold = quiet ? -67 * depth : -64 * depth;
             // SEE PVS Pruning
             if (depth <= 10 && !SEE::see(pos, m, see_threshold)) {
