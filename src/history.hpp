@@ -8,6 +8,8 @@ namespace Clockwork {
 using MainHistory   = std::array<std::array<std::array<i32, 4>, 4096>, 2>;
 using ContHistEntry = std::array<std::array<std::array<i32, 64>, 6>, 2>;
 using ContHistory   = std::array<std::array<std::array<ContHistEntry, 64>, 6>, 2>;
+// king can't get captured
+using CaptHistory = std::array<std::array<std::array<std::array<i32, 64>, 6>, 6>, 2>;
 
 constexpr i32 HISTORY_MAX = 16384;
 
@@ -29,6 +31,9 @@ public:
     i32  get_quiet_stats(const Position& pos, Move move, i32 ply, Search::Stack* ss) const;
     void update_quiet_stats(const Position& pos, Move move, i32 ply, Search::Stack* ss, i32 bonus);
 
+    i32  get_noisy_stats(const Position& pos, Move move) const;
+    void update_noisy_stats(const Position& pos, Move move, i32 bonus);
+
     void clear();
 
 private:
@@ -38,6 +43,7 @@ private:
 
     MainHistory m_main_hist = {};
     ContHistory m_cont_hist = {};
+    CaptHistory m_capt_hist = {};
 };
 
 }

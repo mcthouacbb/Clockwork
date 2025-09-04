@@ -39,8 +39,26 @@ void History::update_quiet_stats(
     }
 }
 
+i32 History::get_noisy_stats(const Position& pos, Move move) const {
+    usize     stm_idx  = static_cast<usize>(pos.active_color());
+    PieceType pt       = pos.piece_at(move.from());
+    usize     pt_idx   = static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn);
+    PieceType captured = move.is_en_passant() ? PieceType::Pawn : pos.piece_at(move.to());
+    return m_capt_hist[stm_idx][pt_idx][static_cast<usize>(captured)][move.to().raw];
+}
+
+void History::update_noisy_stats(const Position& pos, Move move, i32 bonus) {
+    usize     stm_idx  = static_cast<usize>(pos.active_color());
+    PieceType pt       = pos.piece_at(move.from());
+    usize     pt_idx   = static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn);
+    PieceType captured = move.is_en_passant() ? PieceType::Pawn : pos.piece_at(move.to());
+    update_hist_entry(m_capt_hist[stm_idx][pt_idx][static_cast<usize>(captured)][move.to().raw],
+                      bonus);
+}
+
 void History::clear() {
     std::memset(&m_main_hist, 0, sizeof(MainHistory));
     std::memset(&m_cont_hist, 0, sizeof(ContHistory));
+    std::memset(&m_capt_hist, 0, sizeof(CaptHistory));
 }
 }
