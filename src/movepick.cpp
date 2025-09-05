@@ -39,10 +39,10 @@ Move MovePicker::next() {
         [[fallthrough]];
     case Stage::EmitGoodNoisy:
         while (m_current_index < m_noisy.size()) {
-            Move curr = pick_next(m_noisy);
+            auto [curr, curr_score] = pick_next(m_noisy);
             // Check see
             if (curr != m_tt_move) {
-                if (SEE::see(m_pos, curr, tuned::movepicker_see_margin)) {
+                if (SEE::see(m_pos, curr, -curr_score / 32)) {
                     return curr;
                 } else {
                     m_bad_noisy.push_back(curr);
@@ -77,7 +77,7 @@ Move MovePicker::next() {
         [[fallthrough]];
     case Stage::EmitQuiet:
         while (m_current_index < m_quiet.size()) {
-            Move curr = pick_next(m_quiet);
+            Move curr = pick_next(m_quiet).first;
             if (curr != m_tt_move && curr != m_killer) {
                 return curr;
             }
@@ -115,7 +115,7 @@ void MovePicker::score_moves(MoveList& moves) {
     }
 }
 
-Move MovePicker::pick_next(MoveList& moves) {
+std::pair<Move, i32> MovePicker::pick_next(MoveList& moves) {
     u32 best_idx = m_current_index;
     for (u32 i = m_current_index + 1; i < moves.size(); i++) {
         if (m_scores[i] > m_scores[best_idx]) {
@@ -125,7 +125,12 @@ Move MovePicker::pick_next(MoveList& moves) {
 
     std::swap(m_scores[m_current_index], m_scores[best_idx]);
     std::swap(moves[m_current_index], moves[best_idx]);
-    return moves[m_current_index++];
+    std::pair<Move, i32> result = {
+      moves[m_current_index],
+      m_scores[m_current_index],
+    };
+    m_current_index++;
+    return result;
 }
 
 i32 MovePicker::score_move(Move move) const {
@@ -140,5 +145,4 @@ i32 MovePicker::score_move(Move move) const {
         return MVV[static_cast<usize>(captured)] + m_history.get_noisy_stats(m_pos, move);
     }
 }
-
 }
