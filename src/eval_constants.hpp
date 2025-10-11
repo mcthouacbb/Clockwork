@@ -23,6 +23,9 @@ inline const std::array<PParam, 6> PAWN_PHALANX = {
 inline const std::array<PParam, 5> DEFENDED_PAWN = {
     S(58, 46), S(57, 28), S(62, 54), S(143, 119), S(656, -86),
 };
+inline const std::array<PParam, 4> ISOLATED_PAWN = {
+    S(0, 0), S(0, 0), S(0, 0), S(0, 0)
+};
 inline const std::array<PParam, 6> PASSED_PAWN = {
     S(-57, -1), S(-43, 13), S(-15, 84), S(51, 161), S(89, 291), S(210, 79),
 };

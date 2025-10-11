@@ -54,6 +54,15 @@ std::array<std::array<Bitboard, 64>, 2> passed_pawn_spans = []() {
     return passed_pawn_masks;
 }();
 
+std::array<Bitboard, 64> isolated_pawn_masks = []() {
+    std::array<Bitboard, 64> isolated_pawn_masks{};
+    for (u8 sq_idx = 0; sq_idx < 64; sq_idx++) {
+        Bitboard file_bb = Bitboard::file_mask(sq_idx % 8);
+        isolated_pawn_masks[sq_idx] = file_bb.shift(Direction::East) | file_bb.shift(Direction::West);
+    }
+    return isolated_pawn_masks;
+}();
+
 template<Color color>
 PScore evaluate_pawns(const Position& pos) {
     constexpr i32   RANK_2 = 1;
@@ -71,6 +80,8 @@ PScore evaluate_pawns(const Position& pos) {
     for (Square sq : pawns) {
         Square   push     = sq.push<color>();
         Bitboard stoppers = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
+        Bitboard neighbors = pawns & isolated_pawn_masks[sq.raw];
+
         if (stoppers.empty()) {
             eval += PASSED_PAWN[sq.relative_sq(color).rank() - RANK_2];
             if (pos.attack_table(color).read(push).popcount()
@@ -86,6 +97,10 @@ PScore evaluate_pawns(const Position& pos) {
 
             eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[our_king_dist];
             eval += ENEMY_KING_PASSED_PAWN_DISTANCE[their_king_dist];
+        }
+
+        if (neighbors.empty()) {
+            eval += ISOLATED_PAWN[std::min(sq.file(), 7 - sq.file())];
         }
     }
 
