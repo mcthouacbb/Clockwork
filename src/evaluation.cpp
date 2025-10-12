@@ -208,12 +208,12 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     phase = std::min<usize>(phase, 24);
 
     PScore eval = psqt_state.score();
-    eval += evaluate_pieces<Color::White>(pos) - evaluate_pieces<Color::Black>(pos);
-    eval += evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
-    eval += evaluate_potential_checkers<Color::White>(pos)
-          - evaluate_potential_checkers<Color::Black>(pos);
-    eval += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
-    eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
+    // eval += evaluate_pieces<Color::White>(pos) - evaluate_pieces<Color::Black>(pos);
+    // eval += evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
+    // eval += evaluate_potential_checkers<Color::White>(pos)
+        //   - evaluate_potential_checkers<Color::Black>(pos);
+    // eval += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
+    // eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
     return eval->phase<24>(static_cast<i32>(phase));
 };
 

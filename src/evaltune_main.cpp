@@ -21,6 +21,42 @@
 #include <thread>
 #include <tuple>
 
+#include <iostream>
+#include <cstdlib>
+
+size_t totalAllocs = 0;
+size_t totalMem = 0;
+size_t frees = 0;
+
+void* operator new(std::size_t size) {
+    totalAllocs++;
+    totalMem += size;
+    // size_t old = totalMem;
+    // totalMem += size;
+    // if (old / 65536 < totalMem / 65536)
+    // {
+    //     std::cout << "[alloc] size = " << size << " bytes\n";
+    //     std::cout << "[alloc] total allocs = " << totalAllocs << "\n";
+    //     std::cout << "[alloc] total bytes = " << totalMem << " bytes" << std::endl;
+    // }
+    void* p = std::malloc(size);
+    if (!p) throw std::bad_alloc();
+    return p;
+}
+
+void operator delete(void* p) noexcept {
+    // std::cout << "[free] ptr = " << p << "\n";
+    // totalAllocs--;
+    frees++;
+    std::free(p);
+}
+
+size_t freesLol() {
+    size_t result = frees;
+    frees = 0;
+    return result;
+}
+
 using namespace Clockwork;
 
 int main() {
@@ -31,13 +67,13 @@ int main() {
 
     // List of files to load
     const std::vector<std::string> fenFiles = {
-      "data/dfrcv1/dfrc-1m.txt",  
+    //   "data/dfrcv1/dfrc-1m.txt",  
       "data/dfrcv0/v0.txt", 
-      "data/v2.2/filtered_data.txt",  "data/v2.1/filtered_data.txt",
+    //   "data/v2.2/filtered_data.txt",  "data/v2.1/filtered_data.txt",
     };
 
     // Number of threads to use, default to half available
-    const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency() / 2);
+    const u32 thread_count = 1;//std::max<u32>(1, std::thread::hardware_concurrency() / 2);
 
     std::cout << "Running on " << thread_count << " threads" << std::endl;
 
@@ -86,6 +122,7 @@ int main() {
     // Print the number of positions loaded
     std::cout << "Loaded " << positions.size() << " FENs from " << fenFiles.size() << " files."
               << std::endl;
+    std::cout << "Allocations: " << totalAllocs << std::endl;
 
     if (positions.size() == 0) {
         std::cerr << "No positions loaded!" << std::endl;
@@ -145,6 +182,8 @@ int main() {
                     subbatch_outputs.reserve(current_subbatch_size);
                     subbatch_targets.reserve(current_subbatch_size);
 
+                    std::cout << "freesLol " << frees << std::endl;
+
                     Graph::get().copy_parameter_values(current_parameter_values);
 
                     for (size_t j = subbatch_start; j < subbatch_end; ++j) {
@@ -154,6 +193,13 @@ int main() {
                         auto     result = (evaluate_white_pov(pos) * K)->sigmoid();
                         subbatch_outputs.push_back(result);
                         subbatch_targets.push_back(y);
+                        if (j % 8192 == 0) {
+                            std::cout << j << " Allocations: " << totalAllocs << std::endl;
+                            std::cout << "mem/alloc: " << (float)totalMem / totalAllocs << std::endl;
+                            std::cout << "frees: " << frees << std::endl;
+                            std::cout << "delta: " << totalAllocs - frees << std::endl;
+                            std::cout << "end: " << subbatch_end << std::endl;
+                        }
                     }
 
                     auto subbatch_loss =
