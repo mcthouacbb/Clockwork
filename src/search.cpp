@@ -535,7 +535,7 @@ Value Worker::search(
         int extension = 0;
         if (!excluded && tt_data && m == tt_data->move && depth >= 6 && tt_data->depth >= depth - 3
             && tt_data->bound() != Bound::Upper) {
-            Value singular_beta  = tt_data->score - depth * 5;
+            Value singular_beta  = tt_data->score - depth * 3;
             int   singular_depth = depth / 2;
 
             ss->excluded_move    = m;
