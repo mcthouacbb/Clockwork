@@ -231,10 +231,6 @@ int main() {
                   << std::endl;
         std::cout << std::endl;
 
-        std::cout << "inline const PParam POTENTIAL_CHECKER_VAL = " << POTENTIAL_CHECKER_VAL << ";"
-                  << std::endl;
-        std::cout << std::endl;
-
         auto print_table = [](const std::string& name, const auto& table) {
             std::cout << "inline const std::array<PParam, " << table.size() << "> " << name
                       << " = {" << std::endl
@@ -267,6 +263,7 @@ int main() {
         print_table("BISHOP_KING_RING", BISHOP_KING_RING);
         print_table("ROOK_KING_RING", ROOK_KING_RING);
         print_table("QUEEN_KING_RING", QUEEN_KING_RING);
+        print_table("SAFE_CHECK", SAFE_CHECK);
         std::cout << std::endl;
 
         std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
