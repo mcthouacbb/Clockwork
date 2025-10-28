@@ -255,9 +255,22 @@ PScore evaluate_potential_checkers(const Position& pos) {
     cmi.bpawn_near = diag.value();
     cmi.diag       = diag.value();
 
-    Wordboard mask = pos.create_attack_table_superpiece_mask(pos.king_sq(color), cmi);
-    mask           = mask & pos.attack_table(opp);
-    return POTENTIAL_CHECKER_VAL * mask.popcount();
+    Wordboard checkSquares = pos.create_attack_table_superpiece_mask(pos.king_sq(color), cmi);
+    checkSquares           = checkSquares & pos.attack_table(opp);
+
+    PScore eval = PSCORE_ZERO;
+    for (Square sq : checkSquares.get_attacked_bitboard()) {
+        PieceMask defenders = pos.attack_table(color).read(sq);
+        if (defenders.empty() || defenders == PieceMask::king()) {
+            PieceMask checkers = checkSquares.read(sq);
+            for (PieceId pieceId : checkers) {
+                eval += SAFE_CHECK[static_cast<usize>(pos.pt_of(opp, pieceId))
+                                   - static_cast<usize>(PieceType::Pawn)];
+            }
+        }
+    }
+
+    return eval;
 }
 
 template<Color color>
