@@ -169,7 +169,7 @@ PScore evaluate_potential_checkers(const Position& pos) {
             PieceMask checkers = checkSquares.read(sq);
             for (PieceId pieceId : checkers) {
                 eval += SAFE_CHECK[static_cast<usize>(pos.pt_of(opp, pieceId))
-                                   - static_cast<usize>(PieceType::Pawn)];
+                                   - static_cast<usize>(PieceType::Knight)];
             }
         }
     }

@@ -69,8 +69,8 @@ inline const std::array<PParam, 5> ROOK_KING_RING = {
 inline const std::array<PParam, 6> QUEEN_KING_RING = {
     CS(0, 0), S(-3, 17), S(20, 14), S(143, -50), S(351, -142), S(593, -305),
 };
-inline const std::array<PParam, 5> SAFE_CHECK = {
-    S(0, 0), S(-216, 51), S(-60, -17), S(-139, 25), S(-94, 2),
+inline const std::array<PParam, 4> SAFE_CHECK = {
+    S(-216, 51), S(-60, -17), S(-139, 25), S(-94, 2),
 };
 
 inline const PParam PAWN_THREAT_KNIGHT = S(227, 74);
