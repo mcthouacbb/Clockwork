@@ -261,7 +261,7 @@ PScore evaluate_potential_checkers(const Position& pos) {
     PScore eval = PSCORE_ZERO;
     for (Square sq : checkSquares.get_attacked_bitboard()) {
         PieceMask defenders = pos.attack_table(color).read(sq);
-        if (defenders.empty() || defenders == PieceMask::king()) {
+        if (defenders.empty()) {
             PieceMask checkers = checkSquares.read(sq);
             for (PieceId pieceId : checkers) {
                 eval += SAFE_CHECK[static_cast<usize>(pos.pt_of(opp, pieceId))
