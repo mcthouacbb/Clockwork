@@ -30,7 +30,7 @@ int main() {
     std::vector<f64>      results;
 
     // List of files to load
-    const std::vector<std::string> fenFiles = {"1.book"};
+    const std::vector<std::string> fenFiles = {"data/dfrc-1m.txt", "data/dfrcv0.txt", "data/v2.2.txt", "data/v2.1.txt", "data/v3.txt"};
 
     // Number of threads to use, default to half available
     const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency() / 2);
