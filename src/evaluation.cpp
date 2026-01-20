@@ -228,10 +228,12 @@ PScore evaluate_pieces(const Position& pos) {
     Bitboard        own_pawns = pos.bitboard_for(color, PieceType::Pawn);
     Bitboard        blocked_pawns =
       own_pawns & pos.board().get_occupied_bitboard().shift_relative(color, Direction::South);
-    constexpr Bitboard early_ranks     = color == Color::White
-                                         ? Bitboard::rank_mask(1) | Bitboard::rank_mask(2)
-                                         : Bitboard::rank_mask(5) | Bitboard::rank_mask(6);
-    Bitboard           own_early_pawns = own_pawns & early_ranks;
+    constexpr Bitboard early_ranks    = color == Color::White
+                                        ? Bitboard::rank_mask(1) | Bitboard::rank_mask(2)
+                                        : Bitboard::rank_mask(5) | Bitboard::rank_mask(6);
+    constexpr Bitboard center_squares = (Bitboard::rank_mask(3) | Bitboard::rank_mask(4))
+                                      & (Bitboard::file_mask(3) | Bitboard::file_mask(4));
+    Bitboard own_early_pawns = own_pawns & early_ranks;
     Bitboard bb  = (blocked_pawns | own_early_pawns) | pos.attacked_by(opp, PieceType::Pawn);
     Bitboard bb2 = bb;
     Bitboard opp_king_ring = king_ring_table[pos.king_sq(opp).raw];
@@ -250,6 +252,10 @@ PScore evaluate_pieces(const Position& pos) {
         ]
               * (!pos.is_square_attacked_by(sq, color, PieceType::Pawn)
                  + (blocked_pawns & Bitboard::central_files()).ipopcount());
+
+        if (pos.mobility_of(color, id, center_squares) >= 2) {
+            eval += BISHOP_LONG_DIAG;
+        }
     }
     bb2 |= pos.attacked_by(opp, PieceType::Knight) | pos.attacked_by(opp, PieceType::Bishop);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
@@ -401,7 +407,6 @@ PScore evaluate_space(const Position& pos) {
     eval += ROOK_OPEN_VAL * (openfiles & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
     eval +=
       ROOK_SEMIOPEN_VAL * (half_open_files & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
-
 
     return eval;
 }

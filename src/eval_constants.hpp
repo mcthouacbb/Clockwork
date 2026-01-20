@@ -102,6 +102,7 @@ inline const PParam BISHOP_THREAT_QUEEN  = S(200, 55);
 inline const std::array<PParam, 9> BISHOP_PAWNS = {
     S(4, -20), S(-3, -8), S(-4, -18), S(-10, -24), S(-16, -31), S(-22, -34), S(-25, -45), S(-30, -46), S(-38, -51),
 };
+inline const PParam BISHOP_LONG_DIAG = S(0, 0);
 
 inline const PParam ROOK_LINEUP = S(14, 67);
 
