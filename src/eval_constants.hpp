@@ -73,6 +73,9 @@ inline const std::array<PParam, 5> PT_INNER_RING_ATTACKS = {
 inline const std::array<PParam, 5> PT_OUTER_RING_ATTACKS = {
     S(4, -0), S(7, -11), S(6, -9), S(5, -5), S(6, 429),
 };
+inline const std::array<PParam, 4> SAFE_CHECKS = {
+    S(0, 0), S(0, 0), S(0, 0), S(0, 0)
+};
 
 inline const PParam PAWN_THREAT_KNIGHT = S(216, 87);
 inline const PParam PAWN_THREAT_BISHOP = S(193, 138);

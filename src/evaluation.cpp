@@ -310,28 +310,6 @@ PScore evaluate_outposts(const Position& pos) {
     return eval;
 }
 
-
-template<Color color>
-PScore evaluate_potential_checkers(const Position& pos) {
-    constexpr Color opp = ~color;
-
-    const PieceMask orth   = pos.get_piece_mask<PieceType::Rook, PieceType::Queen>(opp);
-    const PieceMask diag   = pos.get_piece_mask<PieceType::Bishop, PieceType::Queen>(opp);
-    const PieceMask knight = pos.get_piece_mask<PieceType::Knight>(opp);
-
-    CreateSuperpieceMaskInfo cmi;
-    cmi.knight     = knight.value();
-    cmi.orth       = orth.value();
-    cmi.orth_near  = orth.value();
-    cmi.wpawn_near = diag.value();
-    cmi.bpawn_near = diag.value();
-    cmi.diag       = diag.value();
-
-    Wordboard mask = pos.create_attack_table_superpiece_mask(pos.king_sq(color), cmi);
-    mask           = mask & pos.attack_table(opp);
-    return POTENTIAL_CHECKER_VAL * mask.popcount();
-}
-
 template<Color color>
 PScore evaluate_king_safety(const Position& pos) {
     constexpr Color opp = ~color;
@@ -354,6 +332,37 @@ PScore evaluate_king_safety(const Position& pos) {
     }
 
     eval += king_shelter<color>(pos);
+
+
+    const PieceMask orth   = pos.get_piece_mask<PieceType::Rook, PieceType::Queen>(opp);
+    const PieceMask diag   = pos.get_piece_mask<PieceType::Bishop, PieceType::Queen>(opp);
+    const PieceMask knight = pos.get_piece_mask<PieceType::Knight>(opp);
+
+    CreateSuperpieceMaskInfo cmi;
+    cmi.knight     = knight.value();
+    cmi.orth       = orth.value();
+    cmi.orth_near  = orth.value();
+    cmi.wpawn_near = diag.value();
+    cmi.bpawn_near = diag.value();
+    cmi.diag       = diag.value();
+
+    Wordboard checkSquares = pos.create_attack_table_superpiece_mask(pos.king_sq(color), cmi);
+    checkSquares           = checkSquares & pos.attack_table(opp);
+
+    for (Square sq : checkSquares.get_attacked_bitboard() & ~pos.board().get_color_bitboard(opp)) {
+        PieceMask defenders = pos.attack_table(color).read(sq);
+        if (defenders.empty()) {
+            PieceMask checkers = checkSquares.read(sq);
+            for (PieceId pieceId : checkers) {
+                usize idx = static_cast<usize>(pos.pt_of(opp, pieceId))
+                          - static_cast<usize>(PieceType::Knight);
+                // only considers knights, bishops, rooks, and queens
+                if (idx < 4) {
+                    eval += SAFE_CHECKS[idx];
+                }
+            }
+        }
+    }
 
     return eval;
 }
@@ -449,8 +458,6 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     eval += evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
     eval +=
       evaluate_pawn_push_threats<Color::White>(pos) - evaluate_pawn_push_threats<Color::Black>(pos);
-    eval += evaluate_potential_checkers<Color::White>(pos)
-          - evaluate_potential_checkers<Color::Black>(pos);
     eval += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
     eval += evaluate_space<Color::White>(pos) - evaluate_space<Color::Black>(pos);
     eval += evaluate_outposts<Color::White>(pos) - evaluate_outposts<Color::Black>(pos);
